@@ -61,11 +61,10 @@ function concatenateTsFiles(outputFile) {
     });
 }
 
-// Function to stream the TS file to the RTMP server (currently unused)
-function streamToRtmp(tsFile) {
+// Function to stream the M3U8 file to the RTMP server
+function streamM3U8ToRtmp(m3u8Url, FULL_RTMP_URL) {
     return new Promise((resolve, reject) => {
-        const ffmpegCommand = `ffmpeg -re -i ${tsFile} -vf "scale=720:1280:flags=bicubic" -c:v libx264 -preset veryfast -crf 20 -g 50 -c:a aac -b:a 128k -f flv ${FULL_RTMP_URL}`;
-        // const ffmpegCommand = `ffmpeg -i ${tsFile} -vf "scale=720:1280" -preset veryfast -b:v 2500k -maxrate 2500k -bufsize 5000k -g 60 -keyint_min 60 -c:v libx264 -r 30 -pix_fmt yuv420p -c:a aac -b:a 160k -ar 44100 -ac 2 -f flv ${FULL_RTMP_URL}`;
+        const ffmpegCommand = `ffmpeg -re -i ${m3u8Url} -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -bufsize 2500k -f flv ${FULL_RTMP_URL}`;
         console.log(`Executing: ${ffmpegCommand}`);
 
         const process = exec(ffmpegCommand, (error, stdout, stderr) => {
@@ -112,29 +111,19 @@ const askQuestion = (query) => {
         headless: true,  // run in headless mode
     });
     const page = await browser.newPage();
+    let m3u8Url = null;
 
     // Intercept network requests
     await page.setRequestInterception(true);
     page.on('request', async (request) => {
         const url = request.url();
-        if (url.endsWith('.ts')) {
-            console.log(`Detected TS segment: ${url}`);
-
-            // Download the .ts file and add it to the list
-            const tsFile = `segment_${Date.now()}.ts`;
-            try {
-                const tsFilePath = await downloadTsFile(url, tsFile);
-
-                tsFileList.push(tsFilePath); // Add the downloaded file to the list
-                
-                // await streamToRtmp(tsFilePath, FULL_RTMP_URL);
-                // Clean up: remove the .ts file after streaming
-                //fs.unlinkSync(tsFilePath);
-            } catch (error) {
-                console.error('Error handling TS segment:', error);
-            }
+        if (url.endsWith('.m3u8')) {
+            console.log(`Detected M3U8 file: ${url}`);
+            m3u8Url = url;
+            request.abort();
+        } else {
+            request.continue();
         }
-        request.continue();
     });
 
     // Go to the Bigo live stream page
@@ -142,21 +131,21 @@ const askQuestion = (query) => {
         waitUntil: 'networkidle2',  // wait for the network to be idle
     });
 
-    // Listen for TS segments for a set duration (e.g., 5 minutes)
-    console.log('Listening for TS segments...');
-    
-    setTimeout(async () => {
-        // After 5 minutes, concatenate the TS files into an MP4 file
-        const outputFile = 'output_video.mp4';
-        try {
-            await concatenateTsFiles(outputFile);
-            console.log(`Video saved as ${outputFile}. You can play this file with VLC.`);
-        } catch (error) {
-            console.error('Error concatenating TS files:', error);
-        }
+    // Wait until an M3U8 file is detected
+    while (!m3u8Url) {
+        await new Promise(resolve => setTimeout(resolve, 1000));  // Polling delay
+    }
 
-        await browser.close();
-        console.log('Browser closed.');
-        process.stdin.pause(); // Stop listening for input
-    }, 120000);  // 30 minutes
+    console.log('Starting stream to RTMP...');
+
+    try {
+        // Stream the M3U8 file to the RTMP server
+        await streamM3U8ToRtmp(m3u8Url, FULL_RTMP_URL);
+    } catch (error) {
+        console.error('Error streaming to RTMP:', error);
+    }
+
+    await browser.close();
+    console.log('Browser closed.');
+    process.stdin.pause();  // Stop listening for input
 })();
