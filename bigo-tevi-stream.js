@@ -1,6 +1,6 @@
 const puppeteer = require('puppeteer');
 const axios = require('axios');
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const stopRecipientStream = require('./stop-stream'); // Adjust the path based on the file structure
 
 
