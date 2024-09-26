@@ -75,21 +75,17 @@ async function monitorStream(m3u8Url, FULL_RTMP_URL) {
 // Function to stream the M3U8 file to the RTMP server
 function streamM3U8ToRtmp(m3u8Url, FULL_RTMP_URL) {
     return new Promise((resolve, reject) => {
-        const ffmpegCommand = `ffmpeg -re -i ${m3u8Url} -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -bufsize 2500k -f flv ${FULL_RTMP_URL}`;
-        console.log(`Executing: ${ffmpegCommand}`);
+        const ffmpegArgs = [
+            '-re', '-i', m3u8Url,
+            '-c:v', 'copy', '-c:a', 'aac', '-ar', '44100', '-ab', '128k', '-ac', '2',
+            '-strict', '-2', '-flags', '+global_header', '-bsf:a', 'aac_adtstoasc', '-bufsize', '2500k',
+            '-f', 'flv', FULL_RTMP_URL
+        ];
 
-        // Spawn the FFmpeg process
-        const ffmpegProcess = exec(ffmpegCommand, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`FFmpeg Error: ${stderr}`);
-                reject(error); // Reject the promise on error
-            } else {
-                console.log(`FFmpeg Output: ${stdout}`);
-                resolve(ffmpegProcess); // Resolve with the FFmpeg process object
-            }
-        });
+        console.log(`Executing: ffmpeg ${ffmpegArgs.join(' ')}`);
 
-        // Output FFmpeg progress in real-time
+        const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
+
         ffmpegProcess.stdout.on('data', (data) => {
             console.log(`FFmpeg STDOUT: ${data}`);
         });
@@ -98,14 +94,19 @@ function streamM3U8ToRtmp(m3u8Url, FULL_RTMP_URL) {
             console.error(`FFmpeg STDERR: ${data}`);
         });
 
-        // Handle 'error' event on the FFmpeg process to avoid unhandled rejections
-        ffmpegProcess.on('error', (err) => {
-            if (err.code === 'ENOTCONN') {
-                console.log('Network connection issue (ENOTCONN), but the stream is still running.');
+        ffmpegProcess.on('close', (code) => {
+            if (code === 0) {
+                console.log('FFmpeg process completed successfully.');
+                resolve();
             } else {
-                console.error('FFmpeg encountered an error:', err);
-                reject(err); // Reject if it's another kind of error
+                console.error(`FFmpeg process exited with code ${code}`);
+                reject(new Error(`FFmpeg process exited with code ${code}`));
             }
+        });
+
+        ffmpegProcess.on('error', (error) => {
+            console.error(`FFmpeg encountered an error: ${error}`);
+            reject(error);
         });
 
         // Return the ffmpegProcess object so we can kill it later
