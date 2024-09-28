@@ -75,11 +75,17 @@ async function monitorStream(m3u8Url, FULL_RTMP_URL) {
 // Function to stream the M3U8 file to the RTMP server
 function streamM3U8ToRtmp(m3u8Url, FULL_RTMP_URL) {
     return new Promise((resolve, reject) => {
+        // const ffmpegArgs = [
+        //     '-re', '-i', m3u8Url,
+        //     '-c:v', 'copy', '-c:a', 'aac', '-ar', '44100', '-ab', '128k', '-ac', '2',
+        //     '-strict', '-2', '-flags', '+global_header', '-bsf:a', 'aac_adtstoasc', '-bufsize', '2500k',
+        //     '-f', 'flv', FULL_RTMP_URL
+        // ];
+
         const ffmpegArgs = [
-            '-re', '-i', m3u8Url,
-            '-c:v', 'copy', '-c:a', 'aac', '-ar', '44100', '-ab', '128k', '-ac', '2',
-            '-strict', '-2', '-flags', '+global_header', '-bsf:a', 'aac_adtstoasc', '-bufsize', '2500k',
-            '-f', 'flv', FULL_RTMP_URL
+            '-i', m3u8Url,
+            '-ar', '44100', '-vcodec', 'libx264', '-r', '25',
+            '-b:v', '500k', '-f', 'flv', FULL_RTMP_URL
         ];
 
         console.log(`Executing: ffmpeg ${ffmpegArgs.join(' ')}`);
