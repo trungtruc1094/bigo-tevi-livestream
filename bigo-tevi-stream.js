@@ -41,6 +41,7 @@ async function monitorStream(m3u8Url, FULL_RTMP_URL, eventCode, shareableUrl) {
         const startResult = await startLivestream(eventCode);
         if (startResult) {
             console.log('Livestream started successfully on Tevi.');
+            await openLivestreamBackstage(shareableUrl);  // Open livestream backstage and perform UI automation
         } else {
             console.error('Failed to start livestream on Tevi.');
         }
@@ -69,6 +70,105 @@ async function monitorStream(m3u8Url, FULL_RTMP_URL, eventCode, shareableUrl) {
 
     console.log('Stream monitoring stopped.');
     process.stdin.pause(); // Stop listening for input
+}
+
+// Puppeteer function to automate backstage process using XPath
+async function openLivestreamBackstage(shareableUrl) {
+    try {
+        // Launch Puppeteer with the Chrome Profile 32 configuration
+        const browser = await puppeteer.launch({
+            headless: false, // Make sure Chrome is visible
+            executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', // Adjust path if necessary
+            args: [
+                '--user-data-dir=C:\\Users\\trung\\AppData\\Local\\Google\\Chrome\\User Data', // Path to Chrome user data
+                    '--profile-directory=Profile 32' // Use Profile 32
+            ]
+        });
+        const page = await browser.newPage();
+        
+        // Go to the shareable livestream URL
+        await page.goto(shareableUrl, { waitUntil: 'networkidle2' });
+
+        // Helper function to click an element using XPath
+        async function clickElementByXPath(xpath, description) {
+            const elementClicked = await page.evaluate((xpath) => {
+                const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                const element = result.singleNodeValue;
+                if (element) {
+                    element.click();
+                    return true;
+                } else {
+                    return false;
+                }
+            }, xpath);
+
+            if (elementClicked) {
+                console.log(`Clicked ${description}.`);
+            } else {
+                throw new Error(`Could not find "${description}" element.`);
+            }
+        }
+
+        // Helper function to hover over an element using XPath
+        async function hoverElementByXPath(xpath, description) {
+            const elementFound = await page.evaluate((xpath) => {
+                const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                const element = result.singleNodeValue;
+                if (element) {
+                    const event = new MouseEvent('mouseover', { bubbles: true, cancelable: true });
+                    element.dispatchEvent(event);
+                    return true;
+                } else {
+                    return false;
+                }
+            }, xpath);
+
+            if (elementFound) {
+                console.log(`Hovered over ${description}.`);
+            } else {
+                throw new Error(`Could not find "${description}" element.`);
+            }
+        }
+
+        // Helper function to wait for a specified time (replacing waitForTimeout)
+        function waitForTimeout(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Helper function to wait until an element is enabled
+        async function waitForElementToBeEnabled(xpath, timeout = 15000) {
+            const startTime = Date.now();
+
+            while (Date.now() - startTime < timeout) {
+                const isEnabled = await page.evaluate((xpath) => {
+                    const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                    const element = result.singleNodeValue;
+                    return element && !element.disabled; // Check if the element is not disabled
+                }, xpath);
+
+                if (isEnabled) {
+                    console.log(`Element is enabled: ${xpath}`);
+                    return true;
+                }
+
+                // Wait for a short time before checking again
+                await waitForTimeout(1000);
+            }
+
+            throw new Error(`Element did not become enabled within ${timeout}ms: ${xpath}`);
+        }
+
+        // Step 3: Click "Enter Backstage" button using XPath
+        await clickElementByXPath('//*[@id="__next"]/main/div/section/div/div/div/div/div/div/div[3]/div[1]/button[2]', 'Enter Backstage button');
+
+        // Step 4: Click + icon to open the add resource dialog using XPath
+        await clickElementByXPath('//*[@id="preview-event-admin"]/div/div/button', 'Plus icon');
+
+        // Close the browser if needed
+        // await browser.close();
+    } catch (error) {
+        console.error('Error automating backstage actions:', error);
+    }
 }
 
 // Function to stream the M3U8 file to the RTMP server
