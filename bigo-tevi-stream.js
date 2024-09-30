@@ -28,7 +28,7 @@ async function isStreamActive(m3u8Url) {
 }
 
 // Function to monitor and stream
-async function monitorStream(m3u8Url, FULL_RTMP_URL, eventCode, shareableUrl) {
+async function monitorStream(m3u8Url, FULL_RTMP_URL) {
     console.log('Starting stream monitoring...');
     let isActive = true;
 
@@ -164,7 +164,7 @@ const askQuestion = (query) => {
 
     try {
         // Start monitoring the stream and streaming to RTMP
-        await monitorStream(m3u8Url, FULL_RTMP_URL, eventCode, shareable_url);
+        await monitorStream(m3u8Url, FULL_RTMP_URL);
     } catch (error) {
         console.error('Error streaming to RTMP:', error);
     }
