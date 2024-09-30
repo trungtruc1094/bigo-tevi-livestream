@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer');
 const axios = require('axios');
 const { spawn } = require('child_process');
 const stopRecipientStream = require('./stop-stream'); // Adjust the path based on the file structure
+const { createLivestream, startLivestream } = require('./create-live-tevi');
 
 
 // Function to check if the original stream is still active
@@ -26,35 +27,33 @@ async function isStreamActive(m3u8Url) {
     }
 }
 
-// Function to stop the recipient's stream (execute a new script or send a command)
-// function stopRecipientStream() {
-//     console.log('Stopping recipient stream...');
-//     const stopCommand = 'node stop-stream.js'; // Run the stop-stream.js script
-//     exec(stopCommand, (error, stdout, stderr) => {
-//         if (error) {
-//             console.error(`Error stopping recipient stream: ${stderr}`);
-//         } else {
-//             console.log(`Recipient stream stopped successfully: ${stdout}`);
-//         }
-//     });
-// }
-
 // Function to monitor and stream
-async function monitorStream(m3u8Url, FULL_RTMP_URL) {
+async function monitorStream(m3u8Url, FULL_RTMP_URL, eventCode, shareableUrl) {
     console.log('Starting stream monitoring...');
     let isActive = true;
 
     // Start streaming the original source to RTMP
     const streamProcess = streamM3U8ToRtmp(m3u8Url, FULL_RTMP_URL);
 
+    if (streamProcess) {
+        console.log('Stream to RTMP started successfully. Now starting the livestream on Tevi...');
+        // Call the startLivestream function after the RTMP stream is successful
+        const startResult = await startLivestream(eventCode);
+        if (startResult) {
+            console.log('Livestream started successfully on Tevi.');
+        } else {
+            console.error('Failed to start livestream on Tevi.');
+        }
+    } else {
+        console.error('Failed to start streaming to RTMP. Skipping livestream start.');
+        return;
+    }
+
     // Keep checking if the original stream is still active
     while (isActive) {
         isActive = await isStreamActive(m3u8Url);
         if (!isActive) {
             console.log('Original stream stopped. Moving to Step 2...');
-            
-            // Kill the FFmpeg process when the stream stops
-            //streamProcess.kill(); // Kill the FFmpeg process to stop streaming
 
             // Stop the recipient stream, and catch any potential errors
             try {
@@ -92,12 +91,17 @@ function streamM3U8ToRtmp(m3u8Url, FULL_RTMP_URL) {
 
         const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
 
+        //let hasStarted = false;
+
         ffmpegProcess.stdout.on('data', (data) => {
             console.log(`FFmpeg STDOUT: ${data}`);
         });
 
         ffmpegProcess.stderr.on('data', (data) => {
             console.error(`FFmpeg STDERR: ${data}`);
+            //hasStarted = true;
+            console.log('FFmpeg stream successfully started.');
+            resolve(ffmpegProcess);  // Resolving the promise with the ffmpegProcess object
         });
 
         ffmpegProcess.on('close', (code) => {
@@ -133,12 +137,12 @@ const askQuestion = (query) => {
 // Main function to monitor and download .ts segments
 (async () => {
     // Prompt the user for the RTMP URL, stream key, and Bigo URL
-    //const rtmpUrl = await askQuestion("Input RTMP URL: ");
-    const streamKey = await askQuestion("Input Stream Key: ");
     const bigoUrl = await askQuestion("Input Bigo URL: ");
-    
-    const FULL_RTMP_URL = `rtmps://live.tevi.com:443/live/${streamKey}`;
-    // Launch Puppeteer and open the browser page
+    const {rtmps_stream_key, eventCode, shareable_url} = await createLivestream();
+    const FULL_RTMP_URL = `rtmps://live.tevi.com:443/live/${rtmps_stream_key}`;
+    console.log('FULL RTMP URL: ', FULL_RTMP_URL);
+
+    //Launch Puppeteer and open the browser page
     const browser = await puppeteer.launch({
         headless: true,  // run in headless mode
         args: ['--remote-debugging-port=9224'], // Add debugging port for later connection
@@ -173,7 +177,7 @@ const askQuestion = (query) => {
 
     try {
         // Start monitoring the stream and streaming to RTMP
-        await monitorStream(m3u8Url, FULL_RTMP_URL);
+        await monitorStream(m3u8Url, FULL_RTMP_URL, eventCode, shareable_url);
     } catch (error) {
         console.error('Error streaming to RTMP:', error);
     }

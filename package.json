@@ -2,12 +2,12 @@
   "dependencies": {
     "axios": "^1.7.7",
     "child_process": "^1.0.2",
+    "node-fetch": "^3.3.2",
     "puppeteer": "^23.3.0"
   },
   "name": "bigo-tevi-stream",
   "version": "1.0.0",
   "main": "bigo-tevi-stream.js",
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
