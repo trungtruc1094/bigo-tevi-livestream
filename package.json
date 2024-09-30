@@ -3,7 +3,7 @@
     "axios": "^1.7.7",
     "child_process": "^1.0.2",
     "node-fetch": "^3.3.2",
-    "puppeteer": "^23.3.0"
+    "puppeteer": "^23.4.1"
   },
   "name": "bigo-tevi-stream",
   "version": "1.0.0",
