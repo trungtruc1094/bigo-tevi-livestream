@@ -123,8 +123,8 @@ const askQuestion = (query) => {
 // Main function to monitor and download .ts segments
 (async () => {
     // Prompt the user for the RTMP URL, stream key, and Bigo URL
-    const bigoUrl = await askQuestion("Input Bigo URL: ");
     const rtmps_stream_key = await askQuestion("Input RTMP stream key: ");
+    const bigoUrl = await askQuestion("Input Bigo URL: ");
     //const {rtmps_stream_key, eventCode, shareable_url} = await createLivestream();
     const FULL_RTMP_URL = `rtmps://live.tevi.com:443/live/${rtmps_stream_key}`;
     console.log('FULL RTMP URL: ', FULL_RTMP_URL);
