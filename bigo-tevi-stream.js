@@ -35,20 +35,20 @@ async function monitorStream(m3u8Url, FULL_RTMP_URL, eventCode, shareableUrl) {
     // Start streaming the original source to RTMP
     const streamProcess = streamM3U8ToRtmp(m3u8Url, FULL_RTMP_URL);
 
-    if (streamProcess) {
-        console.log('Stream to RTMP started successfully. Now starting the livestream on Tevi...');
-        // Call the startLivestream function after the RTMP stream is successful
-        const startResult = await startLivestream(eventCode);
-        if (startResult) {
-            console.log('Livestream started successfully on Tevi.');
-            await openLivestreamBackstage(shareableUrl);  // Open livestream backstage and perform UI automation
-        } else {
-            console.error('Failed to start livestream on Tevi.');
-        }
-    } else {
-        console.error('Failed to start streaming to RTMP. Skipping livestream start.');
-        return;
-    }
+    // if (streamProcess) {
+    //     console.log('Stream to RTMP started successfully. Now starting the livestream on Tevi...');
+    //     // Call the startLivestream function after the RTMP stream is successful
+    //     const startResult = await startLivestream(eventCode);
+    //     if (startResult) {
+    //         console.log('Livestream started successfully on Tevi.');
+    //         //await openLivestreamBackstage(shareableUrl);  // Open livestream backstage and perform UI automation
+    //     } else {
+    //         console.error('Failed to start livestream on Tevi.');
+    //     }
+    // } else {
+    //     console.error('Failed to start streaming to RTMP. Skipping livestream start.');
+    //     return;
+    // }
 
     // Keep checking if the original stream is still active
     while (isActive) {
